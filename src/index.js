@@ -1,7 +1,4 @@
-import './assets/css/index.css'
+import ReactDOM from 'react-dom'
+import App from './pages/App'
 
-let foo = 'ini1t'
-
-console.log(foo)
-
-module.hot ? module.hot.accept() : ''
+ReactDOM.render(<App/>,document.getElementById('app'))
