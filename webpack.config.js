@@ -88,10 +88,11 @@ module.exports = {
         use: {
           loader: 'url-loader',
           options: {
-            name: '[name].[hash:8].[ext]', // 以原图片名输出
-            outputPath: 'images/', // 输出路径
+            esModule:false, // 设为false，否则图片编译为 [object Module]
+            name: 'images/[name].[hash:8].[ext]', // 以原图片名输出
+            outputPath: path.resolve(__dirname, 'build'), // 输出路径
             limit: 10240, // 超过10K打包为图片，反之打包为base64
-            publicPath: './dist/images',
+            publicPath:'../',
           }
         }
       },
