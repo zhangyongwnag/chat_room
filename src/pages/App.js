@@ -8,17 +8,7 @@ class App extends Component {
   }
 
   componentDidMount() {
-    this.props.dispatch({
-      type:'add',
-      data:6
-    })
-
-    setTimeout(() => {
-      this.props.dispatch({
-        type:'set',
-        data:[6,7,8,9,10]
-      })
-    },5000)
+    console.log(this.props)
   }
 
   render() {
@@ -104,7 +94,6 @@ class App extends Component {
 }
 
 function mapStateToProps(state) {
-  console.log(state.room_list)
   return {state}
 }
 

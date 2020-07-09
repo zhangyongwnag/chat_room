@@ -6,6 +6,7 @@
   user-select: none !important;
   color: #657180;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 section {
@@ -30,6 +31,7 @@ section {
   padding: 5px;
   display: flex;
   align-items: center;
+  transition: all 0.5s;
 }
 
 .chat_body_tab {
@@ -38,6 +40,7 @@ section {
   position: relative;
   border-radius: 5px;
   background-color: #ffffff;
+  transition: all 0.5s;
 }
 
 .chat_body_title {
@@ -51,6 +54,9 @@ section {
   align-items: center;
   font-size: 13px;
   border-bottom: 1px #f1f2f3 solid;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat_body_user {
@@ -85,7 +91,7 @@ section {
   position: relative;
 }
 
-.chat_body_user_list::before{
+.chat_body_user_list::before {
   content: " ";
   position: absolute;
   top: 50%;
@@ -101,13 +107,15 @@ section {
   transform: translate(-50%, -50%);
 }
 
-.chat_body_user_list:hover::before{
+.chat_body_user_list:hover::before {
   opacity: 0.1;
 }
+
 .chat_body_user_list:active::before {
   opacity: 0.2;
 }
-.chat_body_user_list::before:visited{
+
+.chat_body_user_list::before:visited {
   opacity: 0.2;
 }
 
@@ -132,7 +140,9 @@ section {
 
 .chat_body_user_head {
   width: 40px;
+  min-width: 40px;
   height: 40px;
+  min-height: 40px;
   border-radius: 5px;
   overflow: hidden;
   display: flex;
@@ -195,16 +205,17 @@ section {
 .chat_body_user_add {
   width: 100%;
   height: 41px;
-  line-height: 41px;
-  text-align: center;
   font-size: 12px;
   position: absolute;
   bottom: 0;
   left: 0;
   border-top: 1px #f1f2f3 solid;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.chat_body_user_add::before{
+.chat_body_user_add::before {
   content: " ";
   position: absolute;
   top: 50%;
@@ -219,8 +230,22 @@ section {
   -webkit-transform: translate(-50%, -50%);
   transform: translate(-50%, -50%);
 }
+
 .chat_body_user_add:active::before {
   opacity: 0.1;
+}
+
+.chat_body_tab_show {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+}
+.chat_body_tab_show img {
+  transform: translateY(48vh);
 }
 
 .chat_body_room {
@@ -229,6 +254,7 @@ section {
   margin-left: 5px;
   background-color: #ffffff;
   border-radius: 5px;
+  transition: all 0.5s;
 }
 
 .chat_body_room_title {
@@ -394,7 +420,8 @@ section {
   text-align: center;
   position: relative;
 }
-.chat_body_room_input_button::before{
+
+.chat_body_room_input_button::before {
   content: " ";
   position: absolute;
   top: 50%;
@@ -409,9 +436,122 @@ section {
   -webkit-transform: translate(-50%, -50%);
   transform: translate(-50%, -50%);
 }
+
 .chat_body_room_input_button:hover::before {
   opacity: 0.1;
 }
+
 .chat_body_room_input_button:active::before {
   opacity: 0.2;
 }
+
+.show_text {
+  width: 100%;
+  overflow: hidden;
+}
+
+.show_img {
+  width: 0;
+  overflow: hidden;
+}
+
+/*响应式断点*/
+@media screen and (max-width: 967px) {
+  .chat_body_tab {
+    width: 60px;
+  }
+
+  .chat_body_user_head_warp {
+    justify-content: center;
+  }
+
+  .chat_body_user_name {
+    display: none;
+  }
+
+  .chat_body_user_list_message_num {
+    display: none;
+  }
+
+  .chat_body_room {
+    width: calc(100% - 60px);
+  }
+
+  .chat_body_user_head {
+    margin: 0 !important;
+  }
+
+  .show_text {
+    width: 0;
+  }
+
+  .show_img {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 667px) {
+  .chat_body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  .chat_body {
+    padding: 0 !important;
+  }
+
+  .chat_body_tab {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 0px;
+    border-radius: 0;
+    box-shadow: 0px 1px 5px 2px #0db3a4;
+  }
+
+  .chat_body_tab_show {
+    display: block;
+  }
+
+  .chat_body_room_title{
+    font-size: 14px;
+    /*font-weight: bold;*/
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .chat_body_room {
+    width: 100%;
+    height: 100%;
+    margin: 0 !important;
+  }
+
+  .chat_body_user_head_warp {
+    justify-content: flex-start;
+  }
+
+  .chat_body_user_name {
+    display: block;
+  }
+
+  .chat_body_user_list_message_num {
+    display: block;
+  }
+
+  .chat_body_user_head {
+    margin: 5px;
+  }
+
+  .show_text {
+    width: 100%;
+  }
+
+  .show_img {
+    width: 0;
+  }
+}
+

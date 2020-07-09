@@ -145,7 +145,7 @@ module.exports = {
     }),
   ],
   devServer: {
-    host: 'localhost', // host地址
+    host: '0.0.0.0', // host地址
     port: '8080', // 端口
     open: true, //自动拉起浏览器
     hot: true, //热加载
