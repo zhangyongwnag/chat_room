@@ -15,24 +15,30 @@ if (env) {
     // 清除上次构建记录
     new CleanWebpackPlugin({
       dry: false,
-      cleanOnceBeforeBuildPatterns: [path.resolve(__dirname,'build')]
+      cleanOnceBeforeBuildPatterns: [path.resolve(__dirname, 'build')]
     }),
-    // 提取css
+    new HtmlWebpackPlugin({
+      title: 'chat',
+      inject: true,
+      filename: 'index.html',
+      template: path.resolve(__dirname, 'index.html'),
+      favicon: path.resolve(__dirname, 'src/assets/favicon.ico'),
+      minify: {
+        removeComments: true,
+        collapseWhitespace: true,
+        removeRedundantAttributes: true,
+        useShortDoctype: true,
+        removeEmptyAttributes: true,
+        removeStyleLinkTypeAttributes: true,
+        keepClosingSlash: true,
+        minifyJS: true,
+        minifyCSS: true,
+        minifyURLs: true
+      },
+    }),
+    // 合并css
     new MiniCssExtractPlugin({
       filename: 'css/[name].css'
-    }),
-    // 打包分析
-    new BundleAnalyzerPlugin({
-      analyzerMode: 'server',
-      analyzerHost: '127.0.0.1',
-      analyzerPort: '5555',
-      reportFilename: 'report.html',
-      defaultSizes: 'parsed',
-      openAnalyzer: true,
-      generateStatsFile: false,
-      statsFilename: 'stats.json',
-      statsOptions: null,
-      logLevel: 'info'
     }),
     // 压缩css
     new OptimizeCSSPlugin(),
@@ -48,11 +54,31 @@ if (env) {
       //   }
       // },
     }),
+    // 打包分析
+    new BundleAnalyzerPlugin({
+      analyzerMode: 'server',
+      analyzerHost: '127.0.0.1',
+      analyzerPort: '5555',
+      reportFilename: 'report.html',
+      defaultSizes: 'parsed',
+      openAnalyzer: true,
+      generateStatsFile: false,
+      statsFilename: 'stats.json',
+      statsOptions: null,
+      logLevel: 'info'
+    }),
   )
 } else {
   plugins.push(
+    new HtmlWebpackPlugin({
+      title: 'chat',
+      inject: true,
+      filename: 'index.html',
+      template: path.resolve(__dirname, 'index.html'),
+      favicon: path.resolve(__dirname, 'src/assets/favicon.ico'),
+    }),
     new webpack.HotModuleReplacementPlugin(), // 热加载
-  )
+d  )
 }
 
 module.exports = {
@@ -88,11 +114,11 @@ module.exports = {
         use: {
           loader: 'url-loader',
           options: {
-            esModule:false, // 设为false，否则图片编译为 [object Module]
-            name: 'images/[name].[hash:8].[ext]', // 以原图片名输出
-            outputPath: path.resolve(__dirname, 'build'), // 输出路径
+            esModule: false, // 设为false，否则图片编译为 [object Module]
+            name: '[name].[hash:8].[ext]', // 以原图片名输出
+            outputPath: 'images', // 输出路径
             limit: 10240, // 超过10K打包为图片，反之打包为base64
-            publicPath:'../',
+            // publicPath:'../',
           }
         }
       },
@@ -124,26 +150,30 @@ module.exports = {
   },
   plugins: [
     ...plugins,
-    new HtmlWebpackPlugin({
-      title: 'chat',
-      inject: true,
-      filename: 'index.html',
-      template: path.resolve(__dirname, 'index.html'),
-      favicon: path.resolve(__dirname, 'src/assets/favicon.ico'),
-      minify: env ? {
-        removeComments: true,
-        collapseWhitespace: true,
-        removeRedundantAttributes: true,
-        useShortDoctype: true,
-        removeEmptyAttributes: true,
-        removeStyleLinkTypeAttributes: true,
-        keepClosingSlash: true,
-        minifyJS: true,
-        minifyCSS: true,
-        minifyURLs: true
-      } : {},
-    }),
   ],
+  optimization: {
+    splitChunks: {
+      chunks: 'initial', // 对入口文件处理
+      cacheGroups: {
+        vendor: {
+          test: /node_modules\//,
+          name: 'js/vendor.js',
+          priority: 10,
+          enforce: true
+        },
+        common: {
+          minChunks: 2,
+          name: 'js/common.js',
+          priority: 10,
+          enforce: true
+        }
+      },
+    },
+    runtimeChunk: {
+      name: 'manifest'
+    },
+    minimizer: []
+  },
   devServer: {
     host: '0.0.0.0', // host地址
     port: '8080', // 端口

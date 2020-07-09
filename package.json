@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "description": "chat",
   "main": "index.js",
+  "homepage": "./",
   "scripts": {
     "dev": "cross-env NODE_TYPE=development webpack-dev-server --progress --colors --config webpack.config.js --mode=development",
     "build": "cross-env NODE_TYPE=production webpack -p --progress --colors --config webpack.config.js --mode=production",
     "server": "node server/index.js"
   },
   "keywords": [
-    "char",
+    "chat",
     "room"
   ],
   "author": "zyw",
