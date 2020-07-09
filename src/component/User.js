@@ -104,5 +104,3 @@ export default class User extends Component {
     )
   }
 }
-
-module.hot ? module.hot.accept() : ''

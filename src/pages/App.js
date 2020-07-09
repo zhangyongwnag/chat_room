@@ -1,9 +1,24 @@
 import React, {Component} from 'react'
+import { connect } from 'react-redux' // 中间件
 import User from '../component/User'
 
-export default class App extends Component {
-  constructor() {
-    super()
+class App extends Component {
+  constructor(props) {
+    super(props)
+  }
+
+  componentDidMount() {
+    this.props.dispatch({
+      type:'add',
+      data:6
+    })
+
+    setTimeout(() => {
+      this.props.dispatch({
+        type:'set',
+        data:[6,7,8,9,10]
+      })
+    },5000)
   }
 
   render() {
@@ -88,4 +103,11 @@ export default class App extends Component {
   }
 }
 
-module.hot ? module.hot.accept() : ''
+function mapStateToProps(state) {
+  console.log(state.room_list)
+  return {state}
+}
+
+export default connect(mapStateToProps)(App)
+
+

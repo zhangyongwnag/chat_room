@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "cross-env NODE_TYPE=development webpack-dev-server --progress --colors --config webpack.config.js --mode=development",
-    "build": "cross-env NODE_TYPE=production webpack -p --progress --colors --config webpack.config.js --mode=production"
+    "build": "cross-env NODE_TYPE=production webpack -p --progress --colors --config webpack.config.js --mode=production",
+    "server": "node server/index.js"
   },
   "keywords": [
     "char",
@@ -49,6 +50,10 @@
   ],
   "dependencies": {
     "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react-dom": "^16.13.1",
+    "react-redux": "^7.2.0",
+    "redux": "^4.0.5",
+    "redux-logger": "^3.0.6",
+    "redux-thunk": "^2.3.0"
   }
 }
