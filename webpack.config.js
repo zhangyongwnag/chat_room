@@ -9,6 +9,7 @@ const OptimizeCSSPlugin = require('optimize-css-assets-webpack-plugin');
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 
 let plugins = [] // plugins
+let externals = {} // externals
 
 if (env) {
   plugins.push(
@@ -35,6 +36,14 @@ if (env) {
         minifyCSS: true,
         minifyURLs: true
       },
+      cdn: {
+        js: [
+          'https://cdn.bootcdn.net/ajax/libs/react/16.13.1/umd/react.production.min.js',
+          'https://cdn.bootcdn.net/ajax/libs/react-dom/16.13.1/umd/react-dom.production.min.js',
+          // 'https://cdn.bootcdn.net/ajax/libs/react-redux/7.2.0/react-redux.min.js',
+          // 'https://cdn.bootcdn.net/ajax/libs/redux/4.0.5/redux.min.js',
+        ]
+      }
     }),
     // 合并css
     new MiniCssExtractPlugin({
@@ -68,6 +77,10 @@ if (env) {
       logLevel: 'info'
     }),
   )
+  externals = {
+    react: 'React',
+    'react-dom': 'ReactDOM',
+  }
 } else {
   plugins.push(
     new HtmlWebpackPlugin({
@@ -78,7 +91,7 @@ if (env) {
       favicon: path.resolve(__dirname, 'src/assets/favicon.ico'),
     }),
     new webpack.HotModuleReplacementPlugin(), // 热加载
-d  )
+  )
 }
 
 module.exports = {
@@ -182,5 +195,6 @@ module.exports = {
     hotOnly: true, // 热加载不更新
     // proxy: {}, // 跨域
     // bypass: {} // 拦截器
-  }
+  },
+  externals: externals,
 }
