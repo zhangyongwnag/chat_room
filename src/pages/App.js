@@ -1,14 +1,43 @@
 import React, {Component} from 'react'
-import { connect } from 'react-redux' // 中间件
+import {connect} from 'react-redux' // 中间件
 import User from '../component/User'
+
+let socket = require('socket.io-client')('http://127.0.0.1:3001')
 
 class App extends Component {
   constructor(props) {
     super(props)
+    this.state = {
+      username:''
+    }
   }
 
   componentDidMount() {
-    console.log(this.props)
+    if (localStorage.getItem('username')){
+      this.setState({
+        username:localStorage.getItem('username')
+      })
+    }else {
+      this.register()
+    }
+
+    socket.on('chat_reg',data => {
+      console.log(data)
+    })
+  }
+
+  // 注册用户
+  register = () => {
+    let name = prompt('请输入用户名')
+    if (name) {
+      localStorage.setItem('username',name)
+      this.setState({
+        username:name
+      })
+      socket.emit('chat_reg',name)
+    }else {
+      this.register()
+    }
   }
 
   render() {

@@ -1,0 +1,41 @@
+[
+  {
+    "user_id": 1,
+    "user_name": "123",
+    "register_time": "2020-7-10 16:45:38",
+    "status": 1,
+    "room_list": [
+      {
+        "room_id": "_1",
+        "room_name": "所有人",
+        "num": 1
+      }
+    ]
+  },
+  {
+    "user_id": 2,
+    "user_name": "23",
+    "register_time": "2020-7-10 16:53:17",
+    "status": 1,
+    "room_list": [
+      {
+        "room_id": "_1",
+        "room_name": "所有人",
+        "num": 2
+      }
+    ]
+  },
+  {
+    "user_id": 3,
+    "user_name": "123",
+    "register_time": "2020-7-10 16:59:24",
+    "status": 1,
+    "room_list": [
+      {
+        "room_id": "_1",
+        "room_name": "所有人",
+        "num": 3
+      }
+    ]
+  }
+]
