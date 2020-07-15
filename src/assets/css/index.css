@@ -244,6 +244,7 @@ section {
   transform: translateY(-50%);
   display: none;
 }
+
 .chat_body_tab_show img {
   transform: translateY(48vh);
 }
@@ -516,7 +517,7 @@ section {
     display: block;
   }
 
-  .chat_body_room_title{
+  .chat_body_room_title {
     font-size: 14px;
     /*font-weight: bold;*/
     display: flex;
