@@ -307,7 +307,7 @@ section {
 }
 
 .chat_body_room_content_list:first-of-type {
-  margin-top: 0;
+  /*margin-top: 0;*/
 }
 
 .chat_body_room_content_list_user {
@@ -327,12 +327,14 @@ section {
 }
 
 .chat_body_room_content_list_user_info {
+  width: 100%;
   display: flex;
   flex-direction: column;
   margin: 3px 0 0 5px;
 }
 
 .user_info_mine {
+  width: 100%;
   align-items: flex-end;
 }
 
@@ -351,13 +353,15 @@ section {
 }
 
 .chat_body_room_content_list_user_text {
+  display: inline-block;
   border-radius: 5px;
   background-color: #0db3a4;
-  max-width: 80%;
+  max-width: 90%;
   font-size: 12px;
   color: #ffffff;
   padding: 10px;
   margin-top: 5px;
+  line-height: 20px;
 }
 
 .chat_body_room_content_list_system_message {

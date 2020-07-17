@@ -9,17 +9,11 @@ class User extends Component {
     }
   }
 
-  // 聚焦修改名称的输入框
-  focusUserNameInput = () => {
-    document.getElementsByClassName('username_input')[0].focus()
+  componentDidMount() {
+    // socket事件回调
+    this.socketEvent()
   }
-  // 更新名称
-  updateUserName = e => {
-    if (e.keyCode == '13') {
-      // 更新名称
-      console.log(e)
-    }
-  }
+
   // 操作用户列表
   showTab = () => {
     this.setState({
@@ -33,14 +27,43 @@ class User extends Component {
       type: 'set',
       data: {
         room: {
-          room_id: item.room_id,
+          room_id: item._id,
           room_item: item
         }
       }
     })
     this.props.socket.emit('join', {
-      room_id:this.props.room.room_id,
-      username:this.state.username
+      roomName: this.props.room.room_item.room_name,
+      roomId: this.props.room.room_id,
+      userId: this.props.userInfo._id,
+      userName: this.props.userInfo.user_name
+    })
+  }
+
+  // 新增群聊
+  addGroupChat = () => {
+    let group_name = prompt('请输入群聊名称')
+    if (group_name.length > 6) {
+      alert('群聊名称不得大于6位')
+      this.addGroupChat()
+    } else if (group_name) {
+      this.props.socket.emit('add_group_chat', group_name)
+    } else {
+      this.addGroupChat()
+    }
+  }
+
+  // socket事件回调
+  socketEvent = () => {
+    // 新增群聊
+    this.props.socket.on('add_group_chat', data => {
+      if (data.code == '100') {
+        alert(data.data)
+        this.addGroupChat()
+      } else {
+        // 模拟点击
+        this.handlerClickItem(data.data.filter(item => item.user_id == this.props.userInfo._id)[0])
+      }
     })
   }
 
@@ -59,7 +82,7 @@ class User extends Component {
           {
             room_list.map((item, index) => (
               <div className='chat_body_user_list' key={index} onClick={() => this.handlerClickItem(item, index)}
-                   style={room.room_id === item.room_id ? {backgroundColor: 'rgba(0,0,0,0.1)'} : {}}>
+                   style={room.room_id === item._id ? {backgroundColor: 'rgba(0,0,0,0.1)'} : {}}>
                 <div className='chat_body_user_head_warp'
                      style={{padding: 0, borderBottom: '1px #f1f2f3 solid', borderRadius: 0}}>
                   <div className='chat_body_user_head' style={{marginLeft: '5px'}}>
@@ -94,10 +117,10 @@ class User extends Component {
             ))
           }
         </div>
-        <div className='chat_body_user_add show_text'>
+        <div className='chat_body_user_add show_text' onClick={this.addGroupChat}>
           新增群聊
         </div>
-        <div className='chat_body_user_add show_img'>
+        <div className='chat_body_user_add show_img' onClick={this.addGroupChat}>
           <img src={require('../assets/img/add_chat_room.png')} alt="" width='20px' height='20px'/>
         </div>
         {

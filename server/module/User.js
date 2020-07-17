@@ -4,10 +4,11 @@ let mongoose = require('mongoose')
 let UserSchema = mongoose.Schema({
   user_name: {
     type: String,
-    unique:true,
-    required:true
+    unique: true,
+    required: true
   },
   current_room_id: String,
+  socket_id: String
 }, {
   timestamps: {
     createdAt: 'createTime',

@@ -2,12 +2,13 @@ let mongoose = require('mongoose')
 
 // 创建 Schema
 let RoomSchema = mongoose.Schema({
-  user_id: '',
-  user_name:'',
+  user_id: String,
+  user_name: String,
   room_name: String,
   status: Number,
   num: Number,
-  badge_number: Number
+  badge_number: Number,
+  current_status: Boolean
 }, {
   timestamps: {
     createdAt: 'createTime',
