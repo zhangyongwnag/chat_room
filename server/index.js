@@ -7,12 +7,12 @@ let chalk = require('chalk')
 let fs = require('fs')
 let mongoose = require('mongoose')
 let db = 'chat' // 连接的数据库名称
-let ObjectId = mongoose.Types.ObjectId
+let ObjectId = mongoose.Types.ObjectId // 用来处理数据库唯一约束_id为ObjectId
 
 // 设置数据库可使用唯一约束
 mongoose.set('useCreateIndex', true)
 // 连接数据库
-mongoose.connect(`mongodb://192.168.43.149:27017/${db}`, {useNewUrlParser: true, useUnifiedTopology: true}, err => {
+mongoose.connect(`mongodb://127.0.0.1:27017/${db}`, {useNewUrlParser: true, useUnifiedTopology: true}, err => {
   console.log()
   if (err) {
     console.log(chalk.bgCyan(chalk.black(' S ')) + chalk.red(' Connect') + chalk.blue(` db.${db}`) + chalk.red(' failure'))
@@ -36,8 +36,7 @@ io.on('connection', socket => {
    */
   socket.on('login', userId => {
     // 更新用户列表socketId
-    User.updateOne({_id: userId}, {$set: {socket_id: socket.id}}, function () {
-      console.log('登录更新成功')
+    User.updateOne({_id: userId}, {$set: {socket_id: socket.id}}).then(res => {
     })
   })
 
@@ -83,15 +82,14 @@ io.on('connection', socket => {
    * @param {String | ObjectId} userId：用户ID
    */
   socket.on('get_room_list', userId => {
-    Room.find({user_id: userId}, function (err, docs) {
-      if (err) return
-      socket.emit('get_room_list', createResponse(true, {once: true, data: docs}))
-    })
+    Room.find({user_id: userId})
+      .then(data => socket.emit('get_room_list', createResponse(true, {once: true, data})))
   })
 
   /**
    * @description 用户退出/加入聊天室
    * @param data {
+   *   {Object} leaveRoom：离开的聊天室信息
    *   {String | ObjectId} userId：当前离线用户ID
    *   {String | ObjectId} roomId：当前用户所处聊天室ID
    *   {String} roomName：当前用户所处聊天室名称
@@ -107,38 +105,59 @@ io.on('connection', socket => {
         // 更新用户的当前所在聊天室
         User.updateOne({_id: ObjectId(data.userId)}, {$set: {current_room_id: data.roomId}}, function () {
           // 更新用户当前所在的聊天室状态
-          Room.updateOne({_id: ObjectId(data.roomId)}, {$set: {current_status: true}}, function () {
-            // 根据当前聊天室获取聊天记录
-            Records.find({room_name: data.roomName}, function (record_err, records) {
-              if (record_err) return
-              socket.emit('chat_message', createResponse(true, {
-                action: 'set',
-                data: records
-              }))
-            })
-            // 获取当前聊天室在线的人数
-            Room.find({room_name: data.roomName, current_status: true}, function (e, current_room_list) {
-              // 更新当前聊天室在线的人数
-              Room.updateMany({room_name: data.roomName}, {
-                $set: {num: current_room_list.length}
-              }, function () {
-                // 更新当前聊天室不在线用户的未读消息数量
-                Room.updateMany({
-                    room_name: data.roomName,
-                    current_status: false
-                  }, {$inc: {badge_number: 1}}, function () {
-                    // 更新聊天室列表
-                    updateRoomList()
-                    // 对所有用户发送消息
-                    insertChatMessage({
+          Room.updateMany({user_id: data.userId}, {$set: {current_status: false}}, function () {
+            Room.updateOne({_id: ObjectId(data.roomId)}, {$set: {current_status: true}}, function () {
+              if (data.leaveRoom) {
+                // 更新离开的聊天室在线人数
+                Room.updateMany({room_name: data.leaveRoom.roomName}, {$inc: {num: -1}}, function () {
+
+                })
+                // 给当前聊天室用户发送离开信息，不包括自己
+                socket.broadcast.to(data.leaveRoom.roomName).emit('chat_message', createResponse(true, {
+                  action: 'add',
+                  data: {
+                    user_id: data.leaveRoom.userId,
+                    user_name: data.leaveRoom.userName,
+                    room_name: data.leaveRoom.roomName,
+                    chat_content: `${data.leaveRoom.userName}离开了聊天室`,
+                    status: 0
+                  }
+                }));
+                // 离开聊天室
+                socket.leave(data.leaveRoom.roomName)
+              }
+              // 清空未读消息数
+              Room.updateOne({_id: ObjectId(data.roomId)}, {$set: {badge_number: 0}}, function () {
+
+              })
+              // 根据当前聊天室获取聊天记录
+              Records.find({room_name: data.roomName}, function (record_err, records) {
+                if (record_err) return
+                socket.emit('chat_message', createResponse(true, {
+                  action: 'set',
+                  data: records
+                }))
+              })
+              // 获取当前聊天室在线的人数
+              Room.find({room_name: data.roomName, current_status: true}, function (e, current_room_list) {
+                // 更新当前聊天室在线的人数
+                Room.updateMany({room_name: data.roomName}, {
+                  $set: {num: current_room_list.length}
+                }, function () {
+                  // 更新聊天室列表
+                  updateRoomList()
+                  // 对所有用户发送消息
+                  io.sockets.in(data.roomName).emit('chat_message', createResponse(true, {
+                    action: 'add',
+                    data: {
                       user_id: data.userId,
                       user_name: data.userName,
                       room_name: data.roomName,
                       chat_content: `${data.userName}加入了聊天室`,
                       status: 0
-                    })
-                  }
-                )
+                    }
+                  }))
+                })
               })
             })
           })
@@ -156,19 +175,36 @@ io.on('connection', socket => {
    */
   socket.on('off_line', data => {
     // 更新当前离线用户所处的聊天室
-    User.updateOne({_id: ObjectId(data.userId)}, {$set: {current_room_id: ''}}, function () {
-      // 更新当前用户所有聊天室的所处状态
-      Room.updateMany({user_id: data.userId}, {$set: {current_status: false}}, function () {
-        // 更新当前聊天室在线用户数
-        Room.updateMany({room_name: data.roomName}, {$inc: {num: -1}}, function () {
-          updateRoomList()
-        })
+    User.updateOne({_id: ObjectId(data.userId)}, {$set: {current_room_id: ''}})
+      .then(res => {
+        // 更新当前用户所有聊天室的所处状态
+        Room.updateMany({user_id: data.userId}, {$set: {current_status: false}})
+          .then(res => {
+            // 更新当前聊天室在线用户数
+            Room.updateMany({room_name: data.roomName}, {$inc: {num: -1}})
+              .then(res => {
+                // 更新群聊列表
+                updateRoomList()
+                // 给当前聊天室用户发送离开信息，不包括自己
+                socket.broadcast.to(data.roomName).emit('chat_message', createResponse(true, {
+                  action: 'add',
+                  data: {
+                    user_id: data.userId,
+                    user_name: data.userName,
+                    room_name: data.roomName,
+                    chat_content: `${data.userName}离开了聊天室`,
+                    status: 0
+                  }
+                }));
+                // socket离开房间
+                socket.leave(data.roomName)
+              })
+          })
       })
-    })
   })
 
   /**
-   * @description 收到聊天信息
+   * @description 处理聊天信息
    * @param data {
    *   {String | ObjectId} userId：当前离线用户ID
    *   {String} username：当前用户名称
@@ -177,13 +213,20 @@ io.on('connection', socket => {
    * }
    */
   socket.on('chat_message', data => {
-    insertChatMessage({
-      user_id: data.userId,
-      user_name: data.userName,
-      room_name: data.roomName,
-      chat_content: data.chat_content,
-      status: 1
-    })
+    // 更新当前聊天室不在线用户的未读消息数量
+    Room.updateMany({room_name: data.roomName, current_status: false}, {$inc: {badge_number: 1}})
+      .then(res => {
+        // 更新聊天列表
+        updateRoomList()
+        // 发送消息
+        insertChatMessage({
+          user_id: data.userId,
+          user_name: data.userName,
+          room_name: data.roomName,
+          chat_content: data.chat_content,
+          status: 1
+        })
+      })
   })
 
   /**
@@ -191,6 +234,7 @@ io.on('connection', socket => {
    * @param {String} name：群聊名称
    */
   socket.on('add_group_chat', name => {
+    // 如果群聊存在，添加，反之拒绝
     Room.findOne({room_name: name})
       .then(res => {
         if (res == null) {
@@ -225,8 +269,47 @@ io.on('connection', socket => {
           })
       })
   })
-})
 
+  /**
+   * @description 新增私聊
+   * @param data {
+   *   {String | ObjectId} userId：当前用户ID
+   *   {String} username：当前用户名称
+   *   {String} userOtherId：与之聊天的用户ID
+   *   {String} userOtherName：与之聊天的用户名称
+   * }
+   */
+  socket.on('add_private_chat', data => {
+    // 如果数据库不存在则添加，反之加入房间
+    Room.findOne({user_id: data.userId, room_name: data.userOtherName})
+      .then(res => {
+        if (res == null) {
+          let room = new Room({
+            user_id: data.userId.toString(),
+            user_name: data.userName,
+            room_name: data.userOtherName,
+            status: 1,
+            num: 0,
+            badge_number: 0,
+            current_status: false
+          })
+          room.save()
+            .then(res => {
+              Room.find({user_id: data.userId})
+                .then(result => {
+                  socket.emit('room_list_all', createResponse(true, result))
+                  socket.emit('add_private_chat', createResponse(true, result.filter(item => item.room_name == data.userOtherName)[0]))
+                })
+            })
+        } else {
+          Room.findOne({user_id: data.userId, room_name: data.userOtherName})
+            .then(data => {
+              socket.emit('add_private_chat', createResponse(true, data))
+            })
+        }
+      })
+  })
+})
 
 /***
  * @description 处理要返回的json数据
@@ -342,16 +425,14 @@ function sendMessageAllUser(data) {
  * @description 更新聊天列表
  */
 function updateRoomList() {
-  Room.find({}, function (err, docs) {
-    if (err) return
-    io.sockets.emit('room_list_all', createResponse(true, docs))
-  })
+  Room.find({})
+    .then(docs => io.sockets.emit('room_list_all', createResponse(true, docs)))
 }
 
 /**
  * @description 启动服务器，因为绑定了socket.io服务端，这里要监听http服务，请勿express服务代替监听
  */
-let server = http.listen(3001, '192.168.43.149', () => {
+let server = http.listen(3001, '127.0.0.1', () => {
   let host = server.address().address
   let port = server.address().port
 

@@ -23,6 +23,12 @@ class User extends Component {
 
   // 点击聊天
   handlerClickItem = (item, index) => {
+    let leaveRoom = {
+      roomName: this.props.room.room_item.room_name,
+      roomId: this.props.room.room_id,
+      userId: this.props.userInfo._id,
+      userName: this.props.userInfo.user_name
+    }
     this.props.dispatch({
       type: 'set',
       data: {
@@ -33,8 +39,9 @@ class User extends Component {
       }
     })
     this.props.socket.emit('join', {
-      roomName: this.props.room.room_item.room_name,
-      roomId: this.props.room.room_id,
+      leaveRoom,
+      roomName: item.room_name,
+      roomId: item._id,
       userId: this.props.userInfo._id,
       userName: this.props.userInfo.user_name
     })
@@ -43,13 +50,14 @@ class User extends Component {
   // 新增群聊
   addGroupChat = () => {
     let group_name = prompt('请输入群聊名称')
-    if (group_name.length > 6) {
+    group_name != null ? group_name = group_name.replace(/\s+/g, "") : ''
+    if (group_name == null || !group_name) {
+      this.addGroupChat()
+    } else if (group_name.length > 6) {
       alert('群聊名称不得大于6位')
       this.addGroupChat()
     } else if (group_name) {
       this.props.socket.emit('add_group_chat', group_name)
-    } else {
-      this.addGroupChat()
     }
   }
 
@@ -64,6 +72,11 @@ class User extends Component {
         // 模拟点击
         this.handlerClickItem(data.data.filter(item => item.user_id == this.props.userInfo._id)[0])
       }
+    })
+    // 新增私聊
+    this.props.socket.on('add_private_chat', data => {
+      // 模拟点击
+      this.handlerClickItem(data.data)
     })
   }
 
@@ -93,10 +106,10 @@ class User extends Component {
                     {
                       item.status ?
                         <div>
-                          <span style={item.status == '2' ? {backgroundColor: 'darkgray'} : {}}
-                                className={item.status ? 'circle' : ''}></span>
-                          <span style={item.status == '2' ? {color: 'darkgray'} : {}}
-                                className='user_status'>{item.status == '1' ? '在线' : '离线'}</span>
+                          <span style={!item.current_status ? {backgroundColor: 'darkgray'} : {}}
+                                className='circle'></span>
+                          <span style={!item.current_status ? {color: 'darkgray'} : {}}
+                                className='user_status'>{item.current_status ? '在线' : '离线'}</span>
                         </div>
                         :
                         <div>

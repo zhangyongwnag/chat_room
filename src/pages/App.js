@@ -2,7 +2,7 @@ import React, {Component} from 'react'
 import {connect} from 'react-redux' // 中间件
 import User from '../component/User'
 
-let socket = require('socket.io-client')('http://192.168.43.149:3001')
+let socket = require('socket.io-client')('http://127.0.0.1:3001')
 
 class App extends Component {
   constructor(props) {
@@ -14,6 +14,7 @@ class App extends Component {
   }
 
   componentDidMount() {
+    // localStorage.removeItem('userInfo')
     // 如果本地信息不存在，则去注册，反之获取聊天列表
     if (localStorage.getItem('userInfo')) {
       this.setState({
@@ -29,20 +30,7 @@ class App extends Component {
     // 开启监听socket事件回调
     this.socketEvent()
 
-    // 监听刷新事件
-    window.onbeforeunload = () => {
-      socket.emit('off_line', {
-        userId: this.state.userInfo._id,
-        roomName: this.props.room.room_item.room_name,
-      })
-    }
-    // 监听离开事件
-    window.onunload = () => {
-      socket.emit('off_line', {
-        userId: this.state.userInfo._id,
-        roomName: this.props.room.room_item.room_name,
-      })
-    }
+    this.listenClose()
 
     // 请求授权消息通知
     // Notification.requestPermission().then(permission => {
@@ -61,13 +49,14 @@ class App extends Component {
   // 注册用户
   register = () => {
     let name = prompt('请输入用户名')
-    if (name.length > 6) {
+    name != null ? name = name.replace(/\s+/g, "") : ''
+    if (name == null || !name) {
+      this.register()
+    } else if (name.length > 6) {
       alert('用户名不得超过6位')
       this.register()
     } else if (name) {
       socket.emit('chat_reg', name)
-    } else {
-      this.register()
     }
   }
 
@@ -169,6 +158,59 @@ class App extends Component {
     })
   }
 
+  // 新增私聊
+  addPrivateChat = item => {
+    socket.emit('add_private_chat', {
+      userId: this.state.userInfo._id,
+      userName: this.state.userInfo.user_name,
+      userOtherId: item.user_id,
+      userOtherName: item.user_name,
+    })
+    // let leaveRoom = {
+    //   roomName: this.props.room.room_item.room_name,
+    //   roomId: this.props.room.room_id,
+    //   userId: this.userInfo._id,
+    //   userName: this.userInfo.user_name
+    // }
+    // this.props.dispatch({
+    //   type: 'set',
+    //   data: {
+    //     room: {
+    //       room_id: item._id,
+    //       room_item: item
+    //     }
+    //   }
+    // })
+    // this.props.socket.emit('join', {
+    //   leaveRoom,
+    //   roomName: item.room_name,
+    //   roomId: item._id,
+    //   userId: this.userInfo._id,
+    //   userName: this.userInfo.user_name
+    // })
+  }
+
+  // 监听浏览器刷新/关闭事件
+  listenClose = () => {
+    if (navigator.userAgent.indexOf('Firefox')) {
+      window.onbeforeunload = () => {
+        socket.emit('off_line', {
+          userName: this.state.userInfo.user_name,
+          userId: this.state.userInfo._id,
+          roomName: this.props.room.room_item.room_name,
+        })
+      }
+    } else {
+      window.onunload = () => {
+        socket.emit('off_line', {
+          userName: this.state.userInfo.user_name,
+          userId: this.state.userInfo._id,
+          roomName: this.props.room.room_item.room_name,
+        })
+      }
+    }
+  }
+
   render() {
     let {room, records} = this.props
     let {userInfo} = this.state
@@ -206,7 +248,8 @@ class App extends Component {
                               </div>
                               :
                               <div className='chat_body_room_content_list'>
-                                <div className='chat_body_room_content_list_user'>
+                                <div className='chat_body_room_content_list_user'
+                                     onClick={() => this.addPrivateChat(item)}>
                                   <img src={require('../assets/img/chat_head_img.jpg')} alt=""/>
                                 </div>
                                 <div className='chat_body_room_content_list_user_info'>

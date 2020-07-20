@@ -2,11 +2,11 @@ let mongoose = require('mongoose')
 
 // 创建 Schema
 let RecordSchema = mongoose.Schema({
-  user_id: String,
-  user_name: String,
-  room_name: String,
-  chat_content: String,
-  status: Number
+  user_id: String, // 用户ID
+  user_name: String, // 用户名称
+  room_name: String, // 聊天室名称
+  chat_content: String, // 聊天内容
+  status: Number // 是否为系统服务消息
 }, {
   timestamps: {
     createdAt: 'createTime',
