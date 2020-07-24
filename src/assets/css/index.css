@@ -362,6 +362,9 @@ section {
   padding: 10px;
   margin-top: 5px;
   line-height: 20px;
+  /*单词换行*/
+  word-wrap: break-word;
+  word-break: break-all
 }
 
 .chat_body_room_content_list_system_message {

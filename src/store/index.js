@@ -4,6 +4,6 @@ import room from './reducer/room'
 import records from "./reducer/records";
 
 export default combineReducers({
-  room,
-  records
+  room, // 聊天室列表
+  records, // 聊天记录
 })

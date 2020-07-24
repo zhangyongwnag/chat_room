@@ -8,6 +8,7 @@ import reducer from './store'
 import thunk from "redux-thunk";
 import logger from 'redux-logger'
 
+// 创建store对象
 const store = createStore(
   reducer,
   compose(

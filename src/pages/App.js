@@ -8,8 +8,9 @@ class App extends Component {
   constructor(props) {
     super(props)
     this.state = {
-      userInfo: {},
-      NotificationStatus: false
+      userInfo: {}, // 用户信息
+      NotificationStatus: false, // 桌面消息提醒
+      inputting: false, // 是否正在输入
     }
   }
 
@@ -17,11 +18,16 @@ class App extends Component {
     // localStorage.removeItem('userInfo')
     // 如果本地信息不存在，则去注册，反之获取聊天列表
     if (localStorage.getItem('userInfo')) {
-      this.setState({
-        userInfo: JSON.parse(localStorage.getItem('userInfo'))
-      }, () => {
-        socket.emit('login', this.state.userInfo._id)
-        socket.emit('get_room_list', this.state.userInfo._id)
+      let userInfo = JSON.parse(localStorage.getItem('userInfo'))
+      socket.emit('login', userInfo._id)
+      socket.on('login', socket_id => {
+        userInfo.socket_id = socket_id
+        localStorage.setItem('userInfo', JSON.stringify(userInfo))
+        this.setState({
+          userInfo
+        }, () => {
+          socket.emit('get_room_list', userInfo._id)
+        })
       })
     } else {
       this.register()
@@ -29,7 +35,7 @@ class App extends Component {
 
     // 开启监听socket事件回调
     this.socketEvent()
-
+    // 用户离线
     this.listenClose()
 
     // 请求授权消息通知
@@ -60,6 +66,25 @@ class App extends Component {
     }
   }
 
+  // 正在输入
+  inputting = () => {
+    console.log('正在输入')
+    clearTimeout(timer)
+    socket.emit('inputting', {
+      userName: this.state.userInfo.user_name,
+      roomName: this.props.room.room_item.room_name,
+      status: true
+    })
+    let timer = setTimeout(() => {
+      clearTimeout(timer)
+      socket.emit('inputting', {
+        userName: this.state.userInfo.user_name,
+        roomName: this.props.room.room_item.room_name,
+        status: false
+      })
+    }, 1000)
+  }
+
   // 发送消息
   sendMessage = () => {
     let ele = document.getElementById('message')
@@ -68,15 +93,61 @@ class App extends Component {
       roomName: this.props.room.room_item.room_name,
       userId: this.state.userInfo._id,
       userName: this.state.userInfo.user_name,
-      chat_content: ele.value
+      chat_content: ele.value,
+      status: this.props.room.room_item.status
     })
+    // 清空输入的文字
     ele.value = ''
   }
 
-  // 聊天到达底部
+  // 聊天记录到达底部
   updatePosition = () => {
     let ele = document.getElementsByClassName('chat_body_room_content_scroll')[0]
     ele.scrollTop = ele.scrollHeight
+  }
+
+  // 新增私聊
+  addPrivateChat = item => {
+    socket.emit('add_private_chat', {
+      userId: this.state.userInfo._id,
+      userName: this.state.userInfo.user_name,
+      userOtherId: item.user_id,
+      userOtherName: item.user_name,
+      status: item.status
+    })
+  }
+
+  // 新消息通知
+  Notification = () => {
+    let n = new Notification('会话服务提醒', {
+      body: '您有新的消息哦，请查收',
+      tag: 'linxin',
+      icon: require('../assets/img/chat_head_img.jpg'),
+      requireInteraction: true
+    })
+  }
+
+  // 监听浏览器刷新/关闭事件
+  listenClose = () => {
+    if (navigator.userAgent.indexOf('Firefox')) {
+      window.onbeforeunload = () => {
+        socket.emit('off_line', {
+          userName: this.state.userInfo.user_name,
+          userId: this.state.userInfo._id,
+          roomName: this.props.room.room_item.room_name,
+          status: this.props.room.room_item.status
+        })
+      }
+    } else {
+      window.onunload = () => {
+        socket.emit('off_line', {
+          userName: this.state.userInfo.user_name,
+          userId: this.state.userInfo._id,
+          roomName: this.props.room.room_item.room_name,
+          status: this.props.room.room_item.status
+        })
+      }
+    }
   }
 
   // socket事件回调
@@ -100,6 +171,7 @@ class App extends Component {
       let room_list = apply.data.data.filter(item => item.user_id == this.state.userInfo._id)
       let room_id = room_list[0]._id.toString()
       let room_item = room_list[0]
+      // 保存用户聊天室信息、列表
       this.props.dispatch({
         type: 'set',
         data: {
@@ -110,13 +182,15 @@ class App extends Component {
           room_list
         }
       })
+      // 如果存在首次获取标识once，用户加入聊天室
       if (apply.data.once) {
         // 加入某个聊天室
         socket.emit('join', {
           roomName: this.props.room.room_item.room_name,
           roomId: this.props.room.room_id,
           userId: this.state.userInfo._id,
-          userName: this.state.userInfo.user_name
+          userName: this.state.userInfo.user_name,
+          status: this.props.room.room_item.status
         })
       }
     })
@@ -142,86 +216,47 @@ class App extends Component {
           data: data.data.data
         })
       }
+      // 聊天置底
       this.updatePosition()
+      // 桌面消息通知有新的消息，这里因为安全问题，https可使用
       // this.Notification()
     })
-  }
-
-  // 新消息通知
-  Notification = () => {
-    console.log('消息')
-    let n = new Notification('会话服务提醒', {
-      body: '您有新的消息哦，请查收',
-      tag: 'linxin',
-      // icon: require('../assets/img/chat_head_img.jpg'),
-      requireInteraction: true
+    // 获取正在输入状态
+    socket.on('inputting', data => {
+      this.setState({
+        inputting: data.code == '200' ? true : false
+      })
     })
   }
 
-  // 新增私聊
-  addPrivateChat = item => {
-    socket.emit('add_private_chat', {
-      userId: this.state.userInfo._id,
-      userName: this.state.userInfo.user_name,
-      userOtherId: item.user_id,
-      userOtherName: item.user_name,
-    })
-    // let leaveRoom = {
-    //   roomName: this.props.room.room_item.room_name,
-    //   roomId: this.props.room.room_id,
-    //   userId: this.userInfo._id,
-    //   userName: this.userInfo.user_name
-    // }
-    // this.props.dispatch({
-    //   type: 'set',
-    //   data: {
-    //     room: {
-    //       room_id: item._id,
-    //       room_item: item
-    //     }
-    //   }
-    // })
-    // this.props.socket.emit('join', {
-    //   leaveRoom,
-    //   roomName: item.room_name,
-    //   roomId: item._id,
-    //   userId: this.userInfo._id,
-    //   userName: this.userInfo.user_name
-    // })
-  }
-
-  // 监听浏览器刷新/关闭事件
-  listenClose = () => {
-    if (navigator.userAgent.indexOf('Firefox')) {
-      window.onbeforeunload = () => {
-        socket.emit('off_line', {
-          userName: this.state.userInfo.user_name,
-          userId: this.state.userInfo._id,
-          roomName: this.props.room.room_item.room_name,
-        })
-      }
-    } else {
-      window.onunload = () => {
-        socket.emit('off_line', {
-          userName: this.state.userInfo.user_name,
-          userId: this.state.userInfo._id,
-          roomName: this.props.room.room_item.room_name,
-        })
-      }
-    }
+  // 函数防抖
+  debounce = (fun, delay) => {
+    clearTimeout(fun.timer)
+    fun.timer = setTimeout(() => {
+      fun()
+    }, delay)
   }
 
   render() {
     let {room, records} = this.props
-    let {userInfo} = this.state
+    let {userInfo, inputting} = this.state
     return (
       <section>
         <div className='chat_body'>
           <User socket={socket} userInfo={userInfo}/>
           <div className='chat_body_room'>
-            <div className='chat_body_room_title'>
-              正在与<span style={{color: 'rgb(13, 179, 164)'}}>{room.room_item.room_name}</span>聊天...
-            </div>
+            {
+              inputting ?
+                <div className='chat_body_room_title'>
+                  <span
+                    style={{color: 'rgb(13, 179, 164)'}}>{room.room_item.status ? room.room_item.room_name.replace(this.state.userInfo.user_name, '').replace('-', '') : room.room_item.room_name}</span>正在输入...
+                </div>
+                :
+                <div className='chat_body_room_title'>
+                  正在与<span
+                  style={{color: 'rgb(13, 179, 164)'}}>{room.room_item.status ? room.room_item.room_name.replace(this.state.userInfo.user_name, '').replace('-', '') : room.room_item.room_name}</span>聊天...
+                </div>
+            }
             <div className='chat_body_room_content_scroll'>
               <div className='chat_body_room_content'>
                 {
@@ -270,7 +305,7 @@ class App extends Component {
             </div>
             <div className='chat_body_room_input'>
               <div className='chat_body_room_input_warp'>
-                <input id='message' type="text" placeholder='请输入聊天内容'
+                <input id='message' type="text" placeholder='请输入聊天内容' onInput={() => this.debounce(this.inputting, 100)}
                        onKeyUp={() => event.keyCode == '13' ? this.sendMessage() : ''}/>
               </div>
               <div className='chat_body_room_input_button' onClick={this.sendMessage}>点击发送</div>

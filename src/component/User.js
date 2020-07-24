@@ -23,11 +23,13 @@ class User extends Component {
 
   // 点击聊天
   handlerClickItem = (item, index) => {
+    // 离开聊天室的用户信息
     let leaveRoom = {
       roomName: this.props.room.room_item.room_name,
       roomId: this.props.room.room_id,
       userId: this.props.userInfo._id,
-      userName: this.props.userInfo.user_name
+      userName: this.props.userInfo.user_name,
+      status: this.props.room.room_item.status
     }
     this.props.dispatch({
       type: 'set',
@@ -38,26 +40,28 @@ class User extends Component {
         }
       }
     })
+    // 加入
     this.props.socket.emit('join', {
       leaveRoom,
       roomName: item.room_name,
       roomId: item._id,
       userId: this.props.userInfo._id,
-      userName: this.props.userInfo.user_name
+      userName: this.props.userInfo.user_name,
+      status: this.props.room.room_item.status
     })
   }
 
   // 新增群聊
   addGroupChat = () => {
     let group_name = prompt('请输入群聊名称')
-    group_name != null ? group_name = group_name.replace(/\s+/g, "") : ''
-    if (group_name == null || !group_name) {
-      this.addGroupChat()
-    } else if (group_name.length > 6) {
-      alert('群聊名称不得大于6位')
-      this.addGroupChat()
-    } else if (group_name) {
-      this.props.socket.emit('add_group_chat', group_name)
+    if (group_name != null) {
+      group_name = group_name.replace(/\s+/g, "")
+      if (group_name.length > 6) {
+        alert('群聊名称不得大于6位')
+        this.addGroupChat()
+      } else if (group_name) {
+        this.props.socket.emit('add_group_chat', group_name)
+      }
     }
   }
 
@@ -102,7 +106,7 @@ class User extends Component {
                     <img src={require('../assets/img/chat_head_img.jpg')} alt=""/>
                   </div>
                   <div className='chat_body_user_name'>
-                    <p>{item.room_name}</p>
+                    <p>{item.status ? item.room_name.replace(this.props.userInfo.user_name, '').replace('-', '') : item.room_name}</p>
                     {
                       item.status ?
                         <div>

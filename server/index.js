@@ -36,7 +36,8 @@ io.on('connection', socket => {
    */
   socket.on('login', userId => {
     // 更新用户列表socketId
-    User.updateOne({_id: userId}, {$set: {socket_id: socket.id}}).then(res => {
+    User.updateOne({_id: ObjectId(userId)}, {$set: {socket_id: socket.id}}, function (err, result) {
+      socket.emit('login', socket.id)
     })
   })
 
@@ -87,17 +88,18 @@ io.on('connection', socket => {
   })
 
   /**
-   * @description 用户退出/加入聊天室
+   * @description 用户加入聊天室
    * @param data {
    *   {Object} leaveRoom：离开的聊天室信息
-   *   {String | ObjectId} userId：当前离线用户ID
+   *   {String | ObjectId} userId：当前用户ID
    *   {String | ObjectId} roomId：当前用户所处聊天室ID
    *   {String} roomName：当前用户所处聊天室名称
+   *   {Number} status：0为群聊，其他为私聊
    * }
    */
   socket.on('join', data => {
     // 创建room
-    socket.join(data.roomName)
+    data.status == '0' ? socket.join(data.roomName) : socket.join(`${data.roomName.split('-')[0]}-${data.roomName.split('-')[1]}`)
     // 找到用户的当前所在聊天室
     User.findOne({_id: ObjectId(data.userId)}, function (error, user_data) {
       // 如果用户的前后俩次聊天室一致，则不更新，反之加入成功
@@ -107,25 +109,8 @@ io.on('connection', socket => {
           // 更新用户当前所在的聊天室状态
           Room.updateMany({user_id: data.userId}, {$set: {current_status: false}}, function () {
             Room.updateOne({_id: ObjectId(data.roomId)}, {$set: {current_status: true}}, function () {
-              if (data.leaveRoom) {
-                // 更新离开的聊天室在线人数
-                Room.updateMany({room_name: data.leaveRoom.roomName}, {$inc: {num: -1}}, function () {
-
-                })
-                // 给当前聊天室用户发送离开信息，不包括自己
-                socket.broadcast.to(data.leaveRoom.roomName).emit('chat_message', createResponse(true, {
-                  action: 'add',
-                  data: {
-                    user_id: data.leaveRoom.userId,
-                    user_name: data.leaveRoom.userName,
-                    room_name: data.leaveRoom.roomName,
-                    chat_content: `${data.leaveRoom.userName}离开了聊天室`,
-                    status: 0
-                  }
-                }));
-                // 离开聊天室
-                socket.leave(data.leaveRoom.roomName)
-              }
+              // 离开聊天室
+              data.leaveRoom ? leaveRoom(socket, data.leaveRoom) : ''
               // 清空未读消息数
               Room.updateOne({_id: ObjectId(data.roomId)}, {$set: {badge_number: 0}}, function () {
 
@@ -171,6 +156,7 @@ io.on('connection', socket => {
    * @param data {
    *   {String | ObjectId} userId：当前离线用户ID
    *   {String} roomName：当前用户所处聊天室名称
+   *   {Number} status：0为群聊，1为私聊
    * }
    */
   socket.on('off_line', data => {
@@ -197,7 +183,7 @@ io.on('connection', socket => {
                   }
                 }));
                 // socket离开房间
-                socket.leave(data.roomName)
+                data.status == '0' ? socket.leave(data.roomName) : socket.leave(`${data.roomName.split('-')[0]}-${data.roomName.split('-')[1]}`)
               })
           })
       })
@@ -210,23 +196,77 @@ io.on('connection', socket => {
    *   {String} username：当前用户名称
    *   {String} roomName：当前用户所处聊天室名称
    *   {String} chat_content：聊天内容
+   *   {Number} status：0为群聊，其他为私聊
    * }
    */
   socket.on('chat_message', data => {
-    // 更新当前聊天室不在线用户的未读消息数量
-    Room.updateMany({room_name: data.roomName, current_status: false}, {$inc: {badge_number: 1}})
-      .then(res => {
-        // 更新聊天列表
-        updateRoomList()
-        // 发送消息
-        insertChatMessage({
-          user_id: data.userId,
-          user_name: data.userName,
-          room_name: data.roomName,
-          chat_content: data.chat_content,
-          status: 1
+    if (data.status == '0') {
+      // 更新当前聊天室不在线用户的未读消息数量
+      Room.updateMany({room_name: data.roomName, current_status: false}, {$inc: {badge_number: 1}})
+        .then(res => {
+          // 更新聊天列表
+          updateRoomList()
+          // 消息入库处理，并且发送消息至在线用户
+          insertChatMessage({
+            user_id: data.userId,
+            user_name: data.userName,
+            room_name: data.roomName,
+            chat_content: data.chat_content,
+            status: 1
+          })
         })
-      })
+    } else if (data.status == '1') {
+      User.findOne({user_name: data.roomName.split('-')[1]})
+        .then(user => {
+          Room.findOne({user_id: user._id, room_name: data.roomName})
+            .then(room => {
+              if (room != null) {
+                Room.updateOne({
+                  room_name: data.roomName,
+                  current_status: false
+                }, {$inc: {badge_number: 1}}, function () {
+                  // 更新聊天列表
+                  updateRoomList()
+                  // 消息入库处理，并且发送消息至在线用户
+                  insertChatMessage({
+                    user_id: data.userId,
+                    user_name: data.userName,
+                    room_name: data.roomName,
+                    chat_content: data.chat_content,
+                    status: 1
+                  })
+                  // // 发送给单个用户
+                  // sendMessageSingleUser(user)
+                })
+              } else {
+                let room = new Room({
+                  user_id: user._id.toString(),
+                  user_name: data.roomName.split('-')[1],
+                  room_name: data.roomName,
+                  status: 1,
+                  num: 0,
+                  badge_number: 1,
+                  current_status: false
+                })
+                room.save()
+                  .then(response => {
+                    // 更新聊天列表
+                    updateRoomList()
+                    // 消息入库处理，并且发送消息至在线用户
+                    insertChatMessage({
+                      user_id: data.userId,
+                      user_name: data.userName,
+                      room_name: data.roomName,
+                      chat_content: data.chat_content,
+                      status: 1
+                    })
+                    // // 发送给单个用户
+                    // sendMessageSingleUser(user)
+                  })
+              }
+            })
+        })
+    }
   })
 
   /**
@@ -280,36 +320,53 @@ io.on('connection', socket => {
    * }
    */
   socket.on('add_private_chat', data => {
-    // 如果数据库不存在则添加，反之加入房间
-    Room.findOne({user_id: data.userId, room_name: data.userOtherName})
+    addPrivateRoom(socket, data)
+  })
+
+  /**
+   * @description 私聊监听用户输入
+   * @param {String} username：当前用户名称
+   * @param {String} roomName：当前聊天室名称
+   * @param {Boolean} status: 用户是否正在输入
+   */
+  socket.on('inputting', data => {
+    User.findOne({user_name: data.roomName.replace(data.userName, '').replace('-', '')})
       .then(res => {
-        if (res == null) {
-          let room = new Room({
-            user_id: data.userId.toString(),
-            user_name: data.userName,
-            room_name: data.userOtherName,
-            status: 1,
-            num: 0,
-            badge_number: 0,
-            current_status: false
-          })
-          room.save()
-            .then(res => {
-              Room.find({user_id: data.userId})
-                .then(result => {
-                  socket.emit('room_list_all', createResponse(true, result))
-                  socket.emit('add_private_chat', createResponse(true, result.filter(item => item.room_name == data.userOtherName)[0]))
-                })
-            })
-        } else {
-          Room.findOne({user_id: data.userId, room_name: data.userOtherName})
-            .then(data => {
-              socket.emit('add_private_chat', createResponse(true, data))
-            })
+        if (res != null) {
+          res.roomName = data.roomName
+          res.status = data.status
+          sendMessageSingleUser(res)
         }
       })
   })
 })
+
+/**
+ * @description 用户离开聊天室
+ * @param {
+ *    {Object} socket：socket对象
+ *    {Object} data：离开聊天室的用户信息
+ * }
+ */
+function leaveRoom(socket, data) {
+  // 更新离开的聊天室在线人数
+  Room.updateMany({room_name: data.roomName}, {$inc: {num: -1}}, function () {
+
+  })
+  // 给当前聊天室用户发送离开信息，不包括自己
+  socket.broadcast.to(data.roomName).emit('chat_message', createResponse(true, {
+    action: 'add',
+    data: {
+      user_id: data.userId,
+      user_name: data.userName,
+      room_name: data.roomName,
+      chat_content: `${data.userName}离开了聊天室`,
+      status: 0
+    }
+  }));
+  // 离开聊天室
+  data.status == '0' ? socket.leave(data.roomName) : socket.leave(`${data.roomName.split('-')[0]}-${data.roomName.split('-')[1]}`)
+}
 
 /***
  * @description 处理要返回的json数据
@@ -383,6 +440,42 @@ function createResponse(status, data) {
 }
 
 /**
+ * @description 新增私聊用户
+ * @param {Object} socket：socket对象
+ * @param {Object} data：新增私聊用户信息
+ */
+function addPrivateRoom(socket, data) {
+  // 如果数据库不存在则添加，反之加入房间
+  Room.find({user_id: data.userId}).where('room_name').in([`${data.userName}-${data.userOtherName}`, `${data.userOtherName}-${data.userName}`]).exec((err, roomList) => {
+    if (err) return
+    if (roomList.length) {
+      Room.findOne({user_id: data.userId, room_name: `${data.userName}-${data.userOtherName}`})
+        .then(data => {
+          socket.emit('add_private_chat', createResponse(true, data))
+        })
+    } else {
+      let room = new Room({
+        user_id: data.userId.toString(),
+        user_name: data.userName,
+        room_name: `${data.userName}-${data.userOtherName}`,
+        status: 1,
+        num: 0,
+        badge_number: 0,
+        current_status: false
+      })
+      room.save()
+        .then(res => {
+          Room.find({user_id: data.userId})
+            .then(result => {
+              socket.emit('room_list_all', createResponse(true, result))
+              socket.emit('add_private_chat', createResponse(true, result.filter(item => item.room_name == `${data.userName}-${data.userOtherName}`)[0]))
+            })
+        })
+    }
+  })
+}
+
+/**
  * @description 插入聊天记录数据
  * @param data {
  *   {String | ObjectId} userId：用户ID
@@ -396,7 +489,7 @@ function insertChatMessage(data) {
   let record = new Records(data)
   record.save()
     .then(res => {
-      sendMessageRoom(data)
+      sendMessageRoomUser(data)
     })
     .catch(err => {
       console.log('插入失败')
@@ -407,7 +500,7 @@ function insertChatMessage(data) {
  * @description 给当前聊天室用户发消息
  * @param {Object} data：插入的聊天记录
  */
-function sendMessageRoom(data) {
+function sendMessageRoomUser(data) {
   io.sockets.in(data.room_name).emit('chat_message', createResponse(true, {
     action: 'add',
     data,
@@ -419,6 +512,17 @@ function sendMessageRoom(data) {
  */
 function sendMessageAllUser(data) {
   io.sockets.emit('get_room_list', createResponse(true, data))
+}
+
+/**
+ * @description 给某个用户发消息
+ * @param user：用户信息
+ */
+function sendMessageSingleUser(user) {
+  console.log(user)
+  Room.find({user_id: user._id}, function (err, data) {
+    io.sockets.sockets[user.socket_id].emit('inputting', createResponse(user.status, user))
+  })
 }
 
 /**

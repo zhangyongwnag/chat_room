@@ -1,3 +1,12 @@
+/**
+ * @description 聊天术列表
+ * @param {
+ *   {Object} state {
+ *     {Object} room：当前所在的聊天室信息
+ *     {Array} room_list：聊天室列表
+ *   }
+ * }
+ */
 export default function (state = {}, action) {
   switch (action.type) {
     case 'get':
