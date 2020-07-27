@@ -449,10 +449,7 @@ function addPrivateRoom(socket, data) {
   Room.find({user_id: data.userId}).where('room_name').in([`${data.userName}-${data.userOtherName}`, `${data.userOtherName}-${data.userName}`]).exec((err, roomList) => {
     if (err) return
     if (roomList.length) {
-      Room.findOne({user_id: data.userId, room_name: `${data.userName}-${data.userOtherName}`})
-        .then(data => {
-          socket.emit('add_private_chat', createResponse(true, data))
-        })
+      socket.emit('add_private_chat', createResponse(true, roomList[0]))
     } else {
       let room = new Room({
         user_id: data.userId.toString(),
