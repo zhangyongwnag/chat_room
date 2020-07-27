@@ -519,10 +519,12 @@ function sendMessageAllUser(data) {
  * @param user：用户信息
  */
 function sendMessageSingleUser(user) {
-  console.log(user)
-  Room.find({user_id: user._id}, function (err, data) {
-    io.sockets.sockets[user.socket_id].emit('inputting', createResponse(user.status, user))
-  })
+  // 如果用户不在线的话，不推送（在用户离线时，我们把他的current_room_id设置为空）
+  if (user.current_room_id) {
+    Room.find({user_id: user._id}, function (err, data) {
+      io.sockets.sockets[user.socket_id].emit('inputting', createResponse(user.status, user))
+    })
+  }
 }
 
 /**

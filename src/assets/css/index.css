@@ -353,6 +353,8 @@ section {
 }
 
 .chat_body_room_content_list_user_text {
+  /*最小高度为40px*/
+  min-height: 40px;
   display: inline-block;
   border-radius: 5px;
   background-color: #0db3a4;

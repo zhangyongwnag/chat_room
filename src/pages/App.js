@@ -10,7 +10,6 @@ class App extends Component {
     this.state = {
       userInfo: {}, // 用户信息
       NotificationStatus: false, // 桌面消息提醒
-      inputting: false, // 是否正在输入
     }
   }
 
@@ -20,15 +19,6 @@ class App extends Component {
     if (localStorage.getItem('userInfo')) {
       let userInfo = JSON.parse(localStorage.getItem('userInfo'))
       socket.emit('login', userInfo._id)
-      socket.on('login', socket_id => {
-        userInfo.socket_id = socket_id
-        localStorage.setItem('userInfo', JSON.stringify(userInfo))
-        this.setState({
-          userInfo
-        }, () => {
-          socket.emit('get_room_list', userInfo._id)
-        })
-      })
     } else {
       this.register()
     }
@@ -68,26 +58,31 @@ class App extends Component {
 
   // 正在输入
   inputting = () => {
-    console.log('正在输入')
-    clearTimeout(timer)
-    socket.emit('inputting', {
-      userName: this.state.userInfo.user_name,
-      roomName: this.props.room.room_item.room_name,
-      status: true
-    })
-    let timer = setTimeout(() => {
-      clearTimeout(timer)
+    // 如果是私聊，告诉服务端用户正在输入
+    if (this.props.room.room_item.status == '1') {
       socket.emit('inputting', {
         userName: this.state.userInfo.user_name,
         roomName: this.props.room.room_item.room_name,
-        status: false
+        status: true
       })
-    }, 1000)
+      // 500秒后，告诉用户输入完毕
+      this.debounce(this.inputtingEnd, 500)
+    }
+  }
+
+  // 用户结束输入
+  inputtingEnd = () => {
+    socket.emit('inputting', {
+      userName: this.state.userInfo.user_name,
+      roomName: this.props.room.room_item.room_name,
+      status: false
+    })
   }
 
   // 发送消息
   sendMessage = () => {
     let ele = document.getElementById('message')
+    // 如果用户没有输入
     if (!ele.value) return
     socket.emit('chat_message', {
       roomName: this.props.room.room_item.room_name,
@@ -152,6 +147,17 @@ class App extends Component {
 
   // socket事件回调
   socketEvent = () => {
+    // 获取登录结果
+    socket.on('login', socket_id => {
+      let userInfo = JSON.parse(localStorage.getItem('userInfo'))
+      userInfo.socket_id = socket_id
+      localStorage.setItem('userInfo', JSON.stringify(userInfo))
+      this.setState({
+        userInfo
+      }, () => {
+        socket.emit('get_room_list', userInfo._id)
+      })
+    })
     // 获取注册结果
     socket.on('chat_reg', apply => {
       if (apply.code == 200) {
@@ -223,9 +229,12 @@ class App extends Component {
     })
     // 获取正在输入状态
     socket.on('inputting', data => {
-      this.setState({
-        inputting: data.code == '200' ? true : false
-      })
+      // 如果用户当前所处聊天室与私聊用户处在同一聊天室
+      if (this.props.room.room_item.room_name.indexOf(data.data.user_name) != -1) {
+        this.setState({
+          inputting: data.code == '200' ? true : false
+        })
+      }
     })
   }
 
@@ -248,8 +257,9 @@ class App extends Component {
             {
               inputting ?
                 <div className='chat_body_room_title'>
-                  <span
-                    style={{color: 'rgb(13, 179, 164)'}}>{room.room_item.status ? room.room_item.room_name.replace(this.state.userInfo.user_name, '').replace('-', '') : room.room_item.room_name}</span>正在输入...
+                      <span
+                        style={{color: 'rgb(13, 179, 164)'}}>{room.room_item.status ? room.room_item.room_name.replace(this.state.userInfo.user_name, '').replace('-', '') : room.room_item.room_name}</span>（
+                  正在输入... ）
                 </div>
                 :
                 <div className='chat_body_room_title'>
@@ -305,7 +315,8 @@ class App extends Component {
             </div>
             <div className='chat_body_room_input'>
               <div className='chat_body_room_input_warp'>
-                <input id='message' type="text" placeholder='请输入聊天内容' onInput={() => this.debounce(this.inputting, 100)}
+                <input id='message' type="text" placeholder='请输入聊天内容'
+                       onInput={this.inputting}
                        onKeyUp={() => event.keyCode == '13' ? this.sendMessage() : ''}/>
               </div>
               <div className='chat_body_room_input_button' onClick={this.sendMessage}>点击发送</div>

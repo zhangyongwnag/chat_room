@@ -23,6 +23,9 @@ class User extends Component {
 
   // 点击聊天
   handlerClickItem = (item, index) => {
+    // 清除输入的值
+    let ele = document.getElementById('message')
+    ele.value = ''
     // 离开聊天室的用户信息
     let leaveRoom = {
       roomName: this.props.room.room_item.room_name,
