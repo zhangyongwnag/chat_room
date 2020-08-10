@@ -7,6 +7,8 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const {BundleAnalyzerPlugin} = require('webpack-bundle-analyzer')
 const OptimizeCSSPlugin = require('optimize-css-assets-webpack-plugin');
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
+const NotifierWebpackPlugin = require('friendly-errors-webpack-plugin')
+const notify = require('node-notifier')
 
 let plugins = [] // plugins
 let externals = {} // externals
@@ -89,6 +91,26 @@ if (env) {
       filename: 'index.html',
       template: path.resolve(__dirname, 'index.html'),
       favicon: path.resolve(__dirname, 'src/assets/favicon.ico'),
+    }),
+    new NotifierWebpackPlugin({
+      // 编译成功处理
+      compilationSuccessInfo: {
+        messages: ['Compiler result at http://localhost:8080']
+      },
+      // 编译失败处理
+      onErrors: (result, errors) => {
+        if (result == 'error') {
+          console.log(errors)
+          notify.notify({
+            title: 'Webpack error',
+            message: `${result}：${errors[0].name}`,
+            subtitle: errors[0].file || '',
+            icon: path.resolve(__dirname, 'src/assets/img/chat_head_img.jpg')
+          })
+        }
+      },
+      // 是否每次编译完成清除控制台
+      clearConsole: true,
     }),
     new webpack.HotModuleReplacementPlugin(), // 热加载
   )
@@ -192,9 +214,12 @@ module.exports = {
     port: '8080', // 端口
     open: true, //自动拉起浏览器
     hot: true, //热加载
-    hotOnly: true, // 热加载不更新
+    hotOnly: false, // 热加载不更新
     // proxy: {}, // 跨域
     // bypass: {} // 拦截器
+    quiet: true, // 隐藏控制台编译过程
+    clientLogLevel: 'warning', // 隐藏客户端编译过程/结果
+    overlay: {warnings: true, errors: true}, // 客户端显示报错信息
   },
-  externals: externals,
+  externals: externals
 }

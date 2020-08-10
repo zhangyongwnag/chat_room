@@ -25,9 +25,3 @@ ReactDOM.render(
     <App/>
   </Provider>,
   document.getElementById('app'))
-
-if (module.hot){
-  module.hot.accept(() => {
-
-  })
-}
